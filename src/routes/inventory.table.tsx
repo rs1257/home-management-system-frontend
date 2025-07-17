@@ -1,4 +1,3 @@
-import { rankItem } from "@tanstack/match-sorter-utils";
 import { createFileRoute } from "@tanstack/react-router";
 import {
 	flexRender,
@@ -8,134 +7,226 @@ import {
 	getSortedRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
-import React from "react";
+import React, { useState } from "react";
 
-import { makeData } from "../data/demo-table-data";
+import { createFormHook, createFormHookContexts } from "@tanstack/react-form";
+import type { ColumnDef } from "@tanstack/react-table";
 
-import type { RankingInfo } from "@tanstack/match-sorter-utils";
-import type {
-	Column,
-	ColumnDef,
-	ColumnFiltersState,
-	FilterFn,
-} from "@tanstack/react-table";
-
+import { Modal } from "@/components/Modal";
+import BaseField from "@/components/form/BaseField";
+import { SubmitButton } from "@/components/form/SubmitButton";
+import Loader from "@/icons/loader";
+import { fuzzyFilter } from "@/util/table";
+import axios from "axios";
+import z from "zod";
 import type { InventoryItem } from "../data/demo-table-data";
 
-export const Route = createFileRoute("/demo/table")({
-	component: TableDemo,
-});
+const loader = async () => {
+	const { data, status } = await axios.get<{ name: string }[]>(
+		"http://localhost:3005/api/inventory",
+	);
+	await new Promise((r) => setTimeout(r, 2000));
+	if (status !== 200) throw new Error("Failed to fetch inventory");
 
-// loader: async () => {
-//     postsCache = await fetchPosts()
-// },
-
-declare module "@tanstack/react-table" {
-	interface FilterFns {
-		fuzzy: FilterFn<unknown>;
-	}
-	interface FilterMeta {
-		itemRank: RankingInfo;
-	}
-}
-
-// Define a custom fuzzy filter function that will apply ranking info to rows (using match-sorter utils)
-const fuzzyFilter: FilterFn<InventoryItem> = (
-	row,
-	columnId,
-	value,
-	addMeta,
-) => {
-	// Rank the item
-	const itemRank = rankItem(row.getValue(columnId), value);
-
-	// Store the itemRank info
-	addMeta({
-		itemRank,
-	});
-
-	// Return if the item should be filtered in/out
-	return itemRank.passed;
+	return data;
 };
 
-// Define a custom fuzzy sort function that will sort by rank if the row has ranking information
-// const fuzzySort: SortingFn<any> = (rowA, rowB, columnId) => {
-//   let dir = 0
+export const Route = createFileRoute("/inventory/table")({
+	component: TableDemo,
+	pendingComponent: () => (
+		<div className="flex flex-col h-screen w-screen items-center">
+			<Loader title="loader" className="animate-spin" />
+			<div>Loading</div>
+		</div>
+	),
+	loader,
+});
 
-//   // Only sort by rank if the column has ranking information
-//   if (rowA.columnFiltersMeta[columnId]) {
-//     dir = compareItems(
-//       rowA.columnFiltersMeta[columnId]?.itemRank!,
-//       rowB.columnFiltersMeta[columnId]?.itemRank!,
-//     )
-//   }
-
-//   // Provide an alphanumeric fallback for when the item ranks are equal
-//   return dir === 0 ? sortingFns.alphanumeric(rowA, rowB, columnId) : dir
-// }
+const { fieldContext, formContext } = createFormHookContexts();
+const { useAppForm } = createFormHook({
+	fieldComponents: {
+		BaseField,
+	},
+	formComponents: {
+		SubmitButton,
+	},
+	fieldContext,
+	formContext,
+});
 
 function TableDemo() {
-	const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-		[],
-	);
+	const [open, setOpen] = useState(false);
 	const [globalFilter, setGlobalFilter] = React.useState("");
 
-	const columns = React.useMemo<ColumnDef<InventoryItem, InventoryItem>[]>(
+	const form = useAppForm({
+		defaultValues: {
+			name: "",
+			quantity: 0,
+			threshold: 0,
+		},
+		onSubmit: ({ value }) => {
+			// Do something with form data
+			alert(JSON.stringify(value, null, 2));
+		},
+	});
+
+	const columns = React.useMemo<ColumnDef<InventoryItem, string>[]>(
 		() => [
 			{
-				accessorKey: "id",
+				accessorKey: "_id",
+				header: "Id",
 			},
 			{
 				accessorKey: "name",
-			},
-			{
-				accessorKey: "description",
+				header: "Name",
 			},
 			{
 				accessorKey: "quantity",
+				header: "Quantity",
 			},
 			{
 				accessorKey: "threshold",
+				header: "Threshold",
+			},
+			{
+				header: "Actions",
+				id: "actions",
+				cell: () => (
+					<div className="grid content-around grid-cols-2 gap-3">
+						<button
+							type="button"
+							onClick={() => setOpen(true)}
+							className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors max-w-24"
+						>
+							Edit
+						</button>
+						<button
+							type="button"
+							onClick={() => setOpen(true)}
+							className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors max-w-24"
+						>
+							Delete
+						</button>
+					</div>
+				),
 			},
 		],
 		[],
 	);
 
-	const [data] = React.useState<InventoryItem[]>(() => makeData(5_000));
+	const [pagination, setPagination] = useState({
+		pageIndex: 0,
+		pageSize: 25,
+	});
+
+	const data = Route.useLoaderData();
 
 	const table = useReactTable({
 		data,
 		columns,
 		filterFns: {
-			fuzzy: fuzzyFilter, //define as a filter function that can be used in column definitions
+			fuzzy: fuzzyFilter,
 		},
 		state: {
-			columnFilters,
 			globalFilter,
+			pagination,
 		},
-		onColumnFiltersChange: setColumnFilters,
 		onGlobalFilterChange: setGlobalFilter,
-		globalFilterFn: "fuzzy", //apply fuzzy filter to the global filter (most common use case for fuzzy filter)
+		globalFilterFn: "fuzzy",
 		getCoreRowModel: getCoreRowModel(),
-		getFilteredRowModel: getFilteredRowModel(), //client side filtering
+		getFilteredRowModel: getFilteredRowModel(),
 		getSortedRowModel: getSortedRowModel(),
 		getPaginationRowModel: getPaginationRowModel(),
+		onPaginationChange: setPagination,
 		debugTable: true,
 		debugHeaders: true,
 		debugColumns: false,
 	});
 
-	//apply the fuzzy sort if the fullName column is being filtered
-	React.useEffect(() => {
-		if (table.getState().columnFilters[0]?.id === "fullName") {
-			if (table.getState().sorting[0]?.id !== "fullName") {
-				table.setSorting([{ id: "fullName", desc: false }]);
-			}
-		}
-	}, [table.setSorting, table.getState]);
-
 	return (
 		<div className="min-h-screen bg-gray-900 p-6">
+			<button
+				type="button"
+				onClick={() => setOpen(true)}
+				className="px-4 py-2 m-4 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors float-right"
+			>
+				Add item
+			</button>
+			<Modal open={open} onClose={() => setOpen(false)}>
+				<form
+					onSubmit={(e) => {
+						e.preventDefault();
+						form.handleSubmit();
+					}}
+				>
+					<h1>Add item</h1>
+					<form.AppField
+						name="name"
+						validators={{
+							onChange: z.string().min(3).max(20),
+						}}
+					>
+						{(field) => (
+							<field.BaseField
+								label={field.name}
+								value={field.state.value}
+								onChange={(e) => field.handleChange(e.target.value)}
+								error={
+									!field.state.meta.isValid
+										? field.state.meta.errors[0]?.message.replaceAll('"', "")
+										: undefined
+								}
+							/>
+						)}
+					</form.AppField>
+
+					<form.AppField
+						name="quantity"
+						validators={{
+							onChange: z.number().min(0).max(1000),
+						}}
+					>
+						{(field) => (
+							<field.BaseField
+								type="number"
+								label={field.name}
+								value={String(field.state.value)}
+								onChange={(e) => field.handleChange(e.target.valueAsNumber)}
+								error={
+									!field.state.meta.isValid
+										? field.state.meta.errors[0]?.message.replaceAll('"', "")
+										: undefined
+								}
+							/>
+						)}
+					</form.AppField>
+
+					<form.AppField
+						name="threshold"
+						validators={{
+							onChange: z.number().min(0).max(100),
+						}}
+					>
+						{(field) => (
+							<field.BaseField
+								type="number"
+								label={field.name}
+								value={String(field.state.value)}
+								onChange={(e) => field.handleChange(e.target.valueAsNumber)}
+								error={
+									!field.state.meta.isValid
+										? field.state.meta.errors[0]?.message.replaceAll('"', "")
+										: undefined
+								}
+							/>
+						)}
+					</form.AppField>
+
+					<form.AppForm>
+						<form.SubmitButton />
+					</form.AppForm>
+				</form>
+			</Modal>
 			<div>
 				<DebouncedInput
 					value={globalFilter ?? ""}
@@ -176,11 +267,6 @@ function TableDemo() {
 															desc: " 🔽",
 														}[header.column.getIsSorted() as string] ?? null}
 													</div>
-													{header.column.getCanFilter() ? (
-														<div className="mt-2">
-															<Filter column={header.column} />
-														</div>
-													) : null}
 												</>
 											)}
 										</th>
@@ -217,14 +303,6 @@ function TableDemo() {
 				<button
 					type="button"
 					className="px-3 py-1 bg-gray-800 rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-					onClick={() => table.setPageIndex(0)}
-					disabled={!table.getCanPreviousPage()}
-				>
-					{"<<"}
-				</button>
-				<button
-					type="button"
-					className="px-3 py-1 bg-gray-800 rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
 					onClick={() => table.previousPage()}
 					disabled={!table.getCanPreviousPage()}
 				>
@@ -238,32 +316,12 @@ function TableDemo() {
 				>
 					{">"}
 				</button>
-				<button
-					type="button"
-					className="px-3 py-1 bg-gray-800 rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-					onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-					disabled={!table.getCanNextPage()}
-				>
-					{">>"}
-				</button>
 				<span className="flex items-center gap-1">
 					<div>Page</div>
 					<strong>
 						{table.getState().pagination.pageIndex + 1} of{" "}
 						{table.getPageCount()}
 					</strong>
-				</span>
-				<span className="flex items-center gap-1">
-					| Go to page:
-					<input
-						type="number"
-						defaultValue={table.getState().pagination.pageIndex + 1}
-						onChange={(e) => {
-							const page = e.target.value ? Number(e.target.value) - 1 : 0;
-							table.setPageIndex(page);
-						}}
-						className="w-16 px-2 py-1 bg-gray-800 rounded-md border border-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-					/>
 				</span>
 				<select
 					value={table.getState().pagination.pageSize}
@@ -272,41 +330,15 @@ function TableDemo() {
 					}}
 					className="px-2 py-1 bg-gray-800 rounded-md border border-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
 				>
-					{[10, 20, 30, 40, 50].map((pageSize) => (
+					{[25, 50, 75, 100].map((pageSize) => (
 						<option key={pageSize} value={pageSize}>
 							Show {pageSize}
 						</option>
 					))}
 				</select>
+				of {table.getPrePaginationRowModel().rows.length} rows
 			</div>
-			<div className="mt-4 text-gray-400">
-				{table.getPrePaginationRowModel().rows.length} Rows
-			</div>
-			<pre className="mt-4 p-4 bg-gray-800 rounded-lg text-gray-300 overflow-auto">
-				{JSON.stringify(
-					{
-						columnFilters: table.getState().columnFilters,
-						globalFilter: table.getState().globalFilter,
-					},
-					null,
-					2,
-				)}
-			</pre>
 		</div>
-	);
-}
-
-function Filter({ column }: { column: Column<InventoryItem, unknown> }) {
-	const columnFilterValue = column.getFilterValue();
-
-	return (
-		<DebouncedInput
-			type="text"
-			value={(columnFilterValue ?? "") as string}
-			onChange={(value) => column.setFilterValue(value)}
-			placeholder={"Search..."}
-			className="w-full px-2 py-1 bg-gray-700 text-white rounded-md border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-		/>
 	);
 }
 
