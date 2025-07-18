@@ -2,7 +2,7 @@ import type React from "react";
 
 type BaseFieldProps = {
 	label?: string;
-	value: string;
+	value: string | number;
 	onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 	placeholder?: string;
 	type?: string;

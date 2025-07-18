@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import {
 	flexRender,
 	getCoreRowModel,
@@ -17,15 +17,22 @@ import BaseField from "@/components/form/BaseField";
 import { SubmitButton } from "@/components/form/SubmitButton";
 import Loader from "@/icons/loader";
 import { fuzzyFilter } from "@/util/table";
+import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
-import z from "zod";
-import type { InventoryItem } from "../data/demo-table-data";
+import { z } from "zod";
+
+type InventoryItem = {
+	_id: string;
+	name: string;
+	quantity: number;
+	threshold: number;
+	// Add other fields if needed, e.g. description?: string;
+};
 
 const loader = async () => {
-	const { data, status } = await axios.get<{ name: string }[]>(
+	const { data, status } = await axios.get<InventoryItem[]>(
 		"http://localhost:3005/api/inventory",
 	);
-	await new Promise((r) => setTimeout(r, 2000));
 	if (status !== 200) throw new Error("Failed to fetch inventory");
 
 	return data;
@@ -58,15 +65,66 @@ function TableDemo() {
 	const [open, setOpen] = useState(false);
 	const [globalFilter, setGlobalFilter] = React.useState("");
 
+	const addInventoryItem = useMutation({
+		mutationKey: ["add-inventory-item"],
+		mutationFn: async (inventoryData: {
+			name: string;
+			quantity: number;
+			threshold: number;
+		}) => {
+			const { data, status } = await axios.post<[]>(
+				"http://localhost:3005/api/inventory",
+				inventoryData,
+			);
+			if (![200, 201].includes(status))
+				throw new Error("Failed to fetch add inventory item");
+
+			return data;
+		},
+		onSuccess: async () => {
+			await router.invalidate();
+			setOpen(false);
+			form.reset();
+		},
+	});
+
 	const form = useAppForm({
 		defaultValues: {
 			name: "",
 			quantity: 0,
 			threshold: 0,
 		},
-		onSubmit: ({ value }) => {
-			// Do something with form data
-			alert(JSON.stringify(value, null, 2));
+		onSubmit: ({ value: { name, quantity, threshold } }) => {
+			addInventoryItem.mutate({
+				name,
+				quantity,
+				threshold,
+			});
+		},
+	});
+
+	const deleteInventoryItem = useMutation({
+		mutationKey: ["delete-inventory-item"],
+		mutationFn: async ({
+			name,
+		}: {
+			name: string;
+		}) => {
+			const { data, status } = await axios.delete<[]>(
+				"http://localhost:3005/api/inventory",
+				{
+					data: {
+						name,
+					},
+				},
+			);
+			if (![200, 201].includes(status))
+				throw new Error("Failed to fetch inventory");
+
+			return data;
+		},
+		onSuccess: async () => {
+			await router.invalidate();
 		},
 	});
 
@@ -91,18 +149,26 @@ function TableDemo() {
 			{
 				header: "Actions",
 				id: "actions",
-				cell: () => (
+				cell: (cell) => (
 					<div className="grid content-around grid-cols-2 gap-3">
 						<button
 							type="button"
-							onClick={() => setOpen(true)}
+							onClick={() => {
+								// TODO need to change the command to a PUT command otherwise if the name changes it wont remove the old.
+								form.setFieldValue("name", cell.row.original.name);
+								form.setFieldValue("quantity", cell.row.original.quantity);
+								form.setFieldValue("threshold", cell.row.original.threshold);
+								setOpen(true);
+							}}
 							className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors max-w-24"
 						>
 							Edit
 						</button>
 						<button
 							type="button"
-							onClick={() => setOpen(true)}
+							onClick={async () => {
+								deleteInventoryItem.mutate({ name: cell.row.original.name });
+							}}
 							className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors max-w-24"
 						>
 							Delete
@@ -111,7 +177,7 @@ function TableDemo() {
 				),
 			},
 		],
-		[],
+		[deleteInventoryItem.mutate, form.setFieldValue],
 	);
 
 	const [pagination, setPagination] = useState({
@@ -120,6 +186,7 @@ function TableDemo() {
 	});
 
 	const data = Route.useLoaderData();
+	const router = useRouter();
 
 	const table = useReactTable({
 		data,
@@ -152,7 +219,13 @@ function TableDemo() {
 			>
 				Add item
 			</button>
-			<Modal open={open} onClose={() => setOpen(false)}>
+			<Modal
+				open={open}
+				onClose={() => {
+					setOpen(false);
+					form.reset();
+				}}
+			>
 				<form
 					onSubmit={(e) => {
 						e.preventDefault();
@@ -190,7 +263,7 @@ function TableDemo() {
 							<field.BaseField
 								type="number"
 								label={field.name}
-								value={String(field.state.value)}
+								value={field.state.value}
 								onChange={(e) => field.handleChange(e.target.valueAsNumber)}
 								error={
 									!field.state.meta.isValid
@@ -277,10 +350,22 @@ function TableDemo() {
 					</thead>
 					<tbody className="divide-y divide-gray-700">
 						{table.getRowModel().rows.map((row) => {
+							console.log(row.original.threshold);
+							const isLessThanThreshold =
+								row.original.quantity < row.original.threshold;
+							const isEqualToThreshold =
+								row.original.quantity === row.original.threshold;
+							const violationClass = isLessThanThreshold
+								? "bg-red-700 hover:bg-red-800 transition-colors"
+								: "bg-orange-400 hover:bg-orange-500 transition-colors text-gray-800";
 							return (
 								<tr
 									key={row.id}
-									className="hover:bg-gray-800 transition-colors"
+									className={
+										!(isEqualToThreshold || isLessThanThreshold)
+											? "hover:bg-gray-800 transition-colors"
+											: violationClass
+									}
 								>
 									{row.getVisibleCells().map((cell) => {
 										return (
