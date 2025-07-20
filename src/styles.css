@@ -1,15 +1,49 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap");
 @import "tailwindcss";
+
+/* @custom-variant dark (&:where(.dark, .dark *)); */
+
+/* @layer base {
+	:root {
+	}
+	:where(.dark) {
+	}
+} */
 
 body {
 	@apply m-0;
-	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-		"Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-		sans-serif;
+	font-family: "Space Mono", monospace;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 }
 
 code {
-	font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
-		monospace;
+	font-family: source-code-pro, monospace;
+}
+
+@theme inline {
+	--color-text: var(--text);
+	--color-background: var(--background);
+	--color-primary: var(--primary);
+	--color-secondary: var(--color-secondary);
+	--color-accent: var(--color-accent);
+}
+
+/* TODO go through and use these colours */
+@layer base {
+	:root {
+		--text: oklch(12.01% 0.045 284.57);
+		--background: oklch(98.89% 0.004 286.33);
+		--primary: oklch(53.53% 0.124 241.78);
+		--color-secondary: oklch(49.86% 0.204 349.37);
+		--color-accent: oklch(68.45% 0.181 129.68);
+	}
+
+	.dark {
+		--text: oklch(94.04% 0.026 288.32);
+		--background: oklch(7.30% 0.018 280.91);
+		--primary: oklch(75.64% 0.127 235.33);
+		--secondary: oklch(69.11% 0.225 344.54);
+		--accent: oklch(90.09% 0.197 126.64);
+	}
 }

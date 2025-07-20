@@ -9,48 +9,72 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TaskListsRouteImport } from './routes/taskLists'
+import { Route as ExpensesRouteImport } from './routes/expenses'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as InventoryTableRouteImport } from './routes/inventory.table'
 
+const TaskListsRoute = TaskListsRouteImport.update({
+  id: '/taskLists',
+  path: '/taskLists',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExpensesRoute = ExpensesRouteImport.update({
+  id: '/expenses',
+  path: '/expenses',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const InventoryTableRoute = InventoryTableRouteImport.update({
-  id: '/inventory/table',
-  path: '/inventory/table',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/inventory/table': typeof InventoryTableRoute
+  '/expenses': typeof ExpensesRoute
+  '/taskLists': typeof TaskListsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/inventory/table': typeof InventoryTableRoute
+  '/expenses': typeof ExpensesRoute
+  '/taskLists': typeof TaskListsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/inventory/table': typeof InventoryTableRoute
+  '/expenses': typeof ExpensesRoute
+  '/taskLists': typeof TaskListsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/inventory/table'
+  fullPaths: '/' | '/expenses' | '/taskLists'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/inventory/table'
-  id: '__root__' | '/' | '/inventory/table'
+  to: '/' | '/expenses' | '/taskLists'
+  id: '__root__' | '/' | '/expenses' | '/taskLists'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  InventoryTableRoute: typeof InventoryTableRoute
+  ExpensesRoute: typeof ExpensesRoute
+  TaskListsRoute: typeof TaskListsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/taskLists': {
+      id: '/taskLists'
+      path: '/taskLists'
+      fullPath: '/taskLists'
+      preLoaderRoute: typeof TaskListsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/expenses': {
+      id: '/expenses'
+      path: '/expenses'
+      fullPath: '/expenses'
+      preLoaderRoute: typeof ExpensesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -58,19 +82,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/inventory/table': {
-      id: '/inventory/table'
-      path: '/inventory/table'
-      fullPath: '/inventory/table'
-      preLoaderRoute: typeof InventoryTableRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  InventoryTableRoute: InventoryTableRoute,
+  ExpensesRoute: ExpensesRoute,
+  TaskListsRoute: TaskListsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
