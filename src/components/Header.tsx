@@ -9,7 +9,7 @@ export default function Header() {
 	);
 
 	return (
-		<header className="p-2 flex gap-2 bg-white text-black justify-between">
+		<header className="p-2 flex gap-2 bg-secondary text-text justify-between sticky top-0 z-50">
 			<nav className="flex flex-row">
 				<div className="px-2 font-bold hover:underline hover:text-accent">
 					<Link to="/">Home</Link>

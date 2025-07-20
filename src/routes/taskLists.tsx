@@ -54,14 +54,14 @@ function TaskLists() {
 	});
 
 	return (
-		<div className="min-h-screen bg-background p-6 flex flex-col items-center">
+		<div className="bg-background p-6 flex flex-col items-center">
 			<h1 className="text-4xl text-text mb-4">Task Lists</h1>
-			<div className="w-[70%] flex flex-col items-center shadow-lg bg-gray-700 rounded p-4">
-				<h2 className="text-white text-2xl pb-3">Shopping</h2>
+			<div className="w-[70%] flex flex-col items-center shadow-lg bg-primary rounded p-4">
+				<h2 className="text-text text-2xl pb-3">Shopping</h2>
 				{data?.map((task) => {
 					return (
 						<ul key={task.id} className="w-full p-2">
-							<li className="shadow-lg bg-gray-800 text-white p-2 h-[3rem] rounded flex items-center transition hover:bg-gray-600">
+							<li className="shadow-lg bg-secondary text-text p-2 h-[3rem] rounded flex items-center transition hover:accent">
 								<input
 									type="checkbox"
 									className="rounded-full h-4 w-4 cursor-pointer bg-red-100 border-red-300 text-red-600 focus:ring-red-200"

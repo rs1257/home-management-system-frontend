@@ -208,7 +208,7 @@ function TableDemo() {
 	});
 
 	return (
-		<div className="min-h-screen bg-gray-900 p-6">
+		<div className="bg-background p-6">
 			<button
 				type="button"
 				onClick={() => {
@@ -304,14 +304,14 @@ function TableDemo() {
 				<DebouncedInput
 					value={globalFilter ?? ""}
 					onChange={(value) => setGlobalFilter(String(value))}
-					className="w-full p-3 bg-gray-800 text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+					className="w-full p-3 bg-primary text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
 					placeholder="Search all columns..."
 				/>
 			</div>
 			<div className="h-4" />
 			<div className="overflow-x-auto rounded-lg border border-gray-700">
-				<table className="w-full text-sm text-gray-200">
-					<thead className="bg-gray-800 text-gray-100">
+				<table className="w-full text-sm text-text">
+					<thead className="bg-primary text-text">
 						{table.getHeaderGroups().map((headerGroup) => (
 							<tr key={headerGroup.id}>
 								{headerGroup.headers.map((header) => {
@@ -355,14 +355,14 @@ function TableDemo() {
 							const isEqualToThreshold =
 								row.original.quantity === row.original.threshold;
 							const violationClass = isLessThanThreshold
-								? "bg-red-700 hover:bg-red-800 transition-colors"
-								: "bg-orange-400 hover:bg-orange-500 transition-colors text-gray-800";
+								? "bg-red-700 hover:bg-red-800 transition-colors text-white"
+								: "bg-orange-400 hover:bg-orange-500 transition-colors text-white";
 							return (
 								<tr
 									key={row.id}
 									className={
 										!(isEqualToThreshold || isLessThanThreshold)
-											? "hover:bg-gray-800 transition-colors"
+											? "hover:bg-gray-800 transition-colors hover:text-white"
 											: violationClass
 									}
 								>
@@ -383,10 +383,10 @@ function TableDemo() {
 				</table>
 			</div>
 			<div className="h-4" />
-			<div className="flex flex-wrap items-center gap-2 text-gray-200">
+			<div className="flex flex-wrap items-center gap-2 text-text">
 				<button
 					type="button"
-					className="px-3 py-1 bg-gray-800 rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+					className="px-3 py-1 bg-secondary rounded-md hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
 					onClick={() => table.previousPage()}
 					disabled={!table.getCanPreviousPage()}
 				>
@@ -394,7 +394,7 @@ function TableDemo() {
 				</button>
 				<button
 					type="button"
-					className="px-3 py-1 bg-gray-800 rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+					className="px-3 py-1 bg-secondary rounded-md hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
 					onClick={() => table.nextPage()}
 					disabled={!table.getCanNextPage()}
 				>
@@ -412,7 +412,7 @@ function TableDemo() {
 					onChange={(e) => {
 						table.setPageSize(Number(e.target.value));
 					}}
-					className="px-2 py-1 bg-gray-800 rounded-md border border-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+					className="px-2 py-1 bg-secondary rounded-md border border-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
 				>
 					{[25, 50, 75, 100].map((pageSize) => (
 						<option key={pageSize} value={pageSize}>
@@ -420,7 +420,7 @@ function TableDemo() {
 						</option>
 					))}
 				</select>
-				of {table.getPrePaginationRowModel().rows.length} rows
+				<span>of {table.getPrePaginationRowModel().rows.length} rows</span>
 			</div>
 		</div>
 	);
