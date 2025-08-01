@@ -9,13 +9,31 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WishListRouteImport } from './routes/wishList'
 import { Route as TaskListsRouteImport } from './routes/taskLists'
+import { Route as MoneyTrackerRouteImport } from './routes/moneyTracker'
+import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as ExpensesRouteImport } from './routes/expenses'
 import { Route as IndexRouteImport } from './routes/index'
 
+const WishListRoute = WishListRouteImport.update({
+  id: '/wishList',
+  path: '/wishList',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TaskListsRoute = TaskListsRouteImport.update({
   id: '/taskLists',
   path: '/taskLists',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MoneyTrackerRoute = MoneyTrackerRouteImport.update({
+  id: '/moneyTracker',
+  path: '/moneyTracker',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InventoryRoute = InventoryRouteImport.update({
+  id: '/inventory',
+  path: '/inventory',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExpensesRoute = ExpensesRouteImport.update({
@@ -32,40 +50,92 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/expenses': typeof ExpensesRoute
+  '/inventory': typeof InventoryRoute
+  '/moneyTracker': typeof MoneyTrackerRoute
   '/taskLists': typeof TaskListsRoute
+  '/wishList': typeof WishListRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/expenses': typeof ExpensesRoute
+  '/inventory': typeof InventoryRoute
+  '/moneyTracker': typeof MoneyTrackerRoute
   '/taskLists': typeof TaskListsRoute
+  '/wishList': typeof WishListRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/expenses': typeof ExpensesRoute
+  '/inventory': typeof InventoryRoute
+  '/moneyTracker': typeof MoneyTrackerRoute
   '/taskLists': typeof TaskListsRoute
+  '/wishList': typeof WishListRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/expenses' | '/taskLists'
+  fullPaths:
+    | '/'
+    | '/expenses'
+    | '/inventory'
+    | '/moneyTracker'
+    | '/taskLists'
+    | '/wishList'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/expenses' | '/taskLists'
-  id: '__root__' | '/' | '/expenses' | '/taskLists'
+  to:
+    | '/'
+    | '/expenses'
+    | '/inventory'
+    | '/moneyTracker'
+    | '/taskLists'
+    | '/wishList'
+  id:
+    | '__root__'
+    | '/'
+    | '/expenses'
+    | '/inventory'
+    | '/moneyTracker'
+    | '/taskLists'
+    | '/wishList'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ExpensesRoute: typeof ExpensesRoute
+  InventoryRoute: typeof InventoryRoute
+  MoneyTrackerRoute: typeof MoneyTrackerRoute
   TaskListsRoute: typeof TaskListsRoute
+  WishListRoute: typeof WishListRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/wishList': {
+      id: '/wishList'
+      path: '/wishList'
+      fullPath: '/wishList'
+      preLoaderRoute: typeof WishListRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/taskLists': {
       id: '/taskLists'
       path: '/taskLists'
       fullPath: '/taskLists'
       preLoaderRoute: typeof TaskListsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/moneyTracker': {
+      id: '/moneyTracker'
+      path: '/moneyTracker'
+      fullPath: '/moneyTracker'
+      preLoaderRoute: typeof MoneyTrackerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inventory': {
+      id: '/inventory'
+      path: '/inventory'
+      fullPath: '/inventory'
+      preLoaderRoute: typeof InventoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/expenses': {
@@ -88,7 +158,10 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ExpensesRoute: ExpensesRoute,
+  InventoryRoute: InventoryRoute,
+  MoneyTrackerRoute: MoneyTrackerRoute,
   TaskListsRoute: TaskListsRoute,
+  WishListRoute: WishListRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
