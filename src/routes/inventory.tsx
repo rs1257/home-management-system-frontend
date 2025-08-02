@@ -1,90 +1,60 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import {
-	flexRender,
-	getCoreRowModel,
-	getFilteredRowModel,
-	getPaginationRowModel,
-	getSortedRowModel,
-	useReactTable,
-} from "@tanstack/react-table";
-import React, { useState } from "react";
-
-import { createFormHook, createFormHookContexts } from "@tanstack/react-form";
 import type { ColumnDef } from "@tanstack/react-table";
-
+import { useMemo, useState } from "react";
+import { z } from "zod";
+import { createInventoryColumns } from "@/columns/inventoryColumns";
 import Loader from "@/components/Loader";
 import { Modal } from "@/components/Modal";
-import BaseField from "@/components/form/BaseField";
-import { SubmitButton } from "@/components/form/SubmitButton";
-import { fuzzyFilter } from "@/util/table";
-import { useMutation } from "@tanstack/react-query";
-import axios from "axios";
-import { z } from "zod";
+import { Table } from "@/components/Table";
+import { useInventoryStore } from "@/stores/inventoryStore";
+import { useAppForm } from "@/util/form";
+import { createLoader } from "@/util/loader";
+import { useMutate } from "@/util/useMutate";
 
-type InventoryItem = {
+export type InventoryItem = {
 	_id: string;
 	name: string;
 	quantity: number;
 	threshold: number;
 };
 
-const loader = async () => {
-	const { data, status } = await axios.get<InventoryItem[]>(
-		"http://localhost:3005/api/inventory",
-	)
-	if (status !== 200) throw new Error("Failed to fetch inventory");
-
-	return data;
-};
-
 export const Route = createFileRoute("/inventory")({
 	component: TableDemo,
 	pendingComponent: Loader,
-	loader,
-});
-
-const { fieldContext, formContext } = createFormHookContexts();
-const { useAppForm } = createFormHook({
-	fieldComponents: {
-		BaseField,
-	},
-	formComponents: {
-		SubmitButton,
-	},
-	fieldContext,
-	formContext,
+	loader: createLoader<InventoryItem[]>(
+		["inventory"],
+		"http://localhost:3005/api/inventory",
+		"Failed to fetch inventory",
+		useInventoryStore,
+	),
 });
 
 function TableDemo() {
 	const [open, setOpen] = useState(false);
 	const [isEdit, setIsEdit] = useState(false);
-	const [globalFilter, setGlobalFilter] = React.useState("");
+	const router = useRouter();
 
-	const addInventoryItem = useMutation({
-		mutationKey: ["add-inventory-item"],
-		mutationFn: async (inventoryData: {
-			originalName?: string;
-			name: string;
-			quantity: number;
-			threshold: number;
-		}) => {
-			const { data, status } = await axios({
-				method: isEdit ? "PUT" : "POST",
-				url: "http://localhost:3005/api/inventory",
-				data: inventoryData,
-			})
-
-			if (![200, 201].includes(status))
-				throw new Error("Failed to fetch add inventory item");
-
-			return data;
-		},
-		onSuccess: async () => {
+	const addInventoryItem = useMutate(
+		["add-inventory-item"],
+		isEdit ? "PUT" : "POST",
+		"http://localhost:3005/api/inventory",
+		"Failed to fetch add inventory item",
+		async () => {
 			await router.invalidate();
 			setOpen(false);
 			form.reset();
 		},
-	})
+	);
+
+	const deleteInventoryItem = useMutate(
+		["delete-inventory-item"],
+		"DELETE",
+		"http://localhost:3005/api/inventory",
+		"Failed to delete inventory item",
+		async () => {
+			await router.invalidate();
+		},
+	);
 
 	const form = useAppForm({
 		defaultValues: {
@@ -99,113 +69,74 @@ function TableDemo() {
 				quantity,
 				threshold,
 				originalName,
-			})
+			});
 		},
-	})
+	});
 
-	const deleteInventoryItem = useMutation({
-		mutationKey: ["delete-inventory-item"],
-		mutationFn: async ({
-			name,
-		}: {
-			name: string;
-		}) => {
-			const { data, status } = await axios.delete<[]>(
-				"http://localhost:3005/api/inventory",
-				{
-					data: {
-						name,
-					},
+	const columns = useMemo<ColumnDef<InventoryItem, string>[]>(
+		() =>
+			createInventoryColumns(
+				(cell) => {
+					form.setFieldValue("originalName", cell.row.original.name);
+					form.setFieldValue("name", cell.row.original.name);
+					form.setFieldValue("quantity", cell.row.original.quantity);
+					form.setFieldValue("threshold", cell.row.original.threshold);
+					setIsEdit(true);
+					setOpen(true);
 				},
-			)
-			if (![200, 201].includes(status))
-				throw new Error("Failed to fetch inventory");
-
-			return data;
-		},
-		onSuccess: async () => {
-			await router.invalidate();
-		},
-	})
-
-	const columns = React.useMemo<ColumnDef<InventoryItem, string>[]>(
-		() => [
-			{
-				accessorKey: "name",
-				header: "Name",
-			},
-			{
-				accessorKey: "quantity",
-				header: "Quantity",
-			},
-			{
-				accessorKey: "threshold",
-				header: "Threshold",
-			},
-			{
-				header: "Actions",
-				id: "actions",
-				cell: (cell) => (
-					<div className="grid content-around grid-cols-2 gap-3">
-						<button
-							type="button"
-							onClick={() => {
-								form.setFieldValue("originalName", cell.row.original.name);
-								form.setFieldValue("name", cell.row.original.name);
-								form.setFieldValue("quantity", cell.row.original.quantity);
-								form.setFieldValue("threshold", cell.row.original.threshold);
-								setIsEdit(true)
-								setOpen(true)
-							}}
-							className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors max-w-24"
-						>
-							Edit
-						</button>
-						<button
-							type="button"
-							onClick={async () => {
-								deleteInventoryItem.mutate({ name: cell.row.original.name });
-							}}
-							className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors max-w-24"
-						>
-							Delete
-						</button>
-					</div>
-				),
-			},
-		],
+				async (cell) => {
+					deleteInventoryItem.mutate({ name: cell.row.original.name });
+				},
+			),
 		[deleteInventoryItem.mutate, form.setFieldValue],
-	)
-
-	const [pagination, setPagination] = useState({
-		pageIndex: 0,
-		pageSize: 25,
-	})
-
-	const data = Route.useLoaderData();
-	const router = useRouter();
-
-	const table = useReactTable({
-		data,
-		columns,
-		filterFns: {
-			fuzzy: fuzzyFilter,
-		},
-		state: {
-			globalFilter,
-			pagination,
-		},
-		onGlobalFilterChange: setGlobalFilter,
-		globalFilterFn: "fuzzy",
-		getCoreRowModel: getCoreRowModel(),
-		getFilteredRowModel: getFilteredRowModel(),
-		getSortedRowModel: getSortedRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
-		onPaginationChange: setPagination,
-		debugTable: true,
-		debugHeaders: true,
-		debugColumns: false,
-	})
+	);
+	// 	() => [
+	// 		{
+	// 			accessorKey: "name",
+	// 			header: "Name",
+	// 		},
+	// 		{
+	// 			accessorKey: "quantity",
+	// 			header: "Quantity",
+	// 		},
+	// 		{
+	// 			accessorKey: "threshold",
+	// 			header: "Threshold",
+	// 		},
+	// 		{
+	// 			header: "Actions",
+	// 			id: "actions",
+	// 			cell: (cell) => (
+	// 				<div className="grid content-around grid-cols-2 gap-3">
+	// 					<button
+	// 						type="button"
+	// 						onClick={() => {
+	// 							form.setFieldValue("originalName", cell.row.original.name);
+	// 							form.setFieldValue("name", cell.row.original.name);
+	// 							form.setFieldValue("quantity", cell.row.original.quantity);
+	// 							form.setFieldValue("threshold", cell.row.original.threshold);
+	// 							setIsEdit(true);
+	// 							setOpen(true);
+	// 						}}
+	// 						className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors max-w-24"
+	// 					>
+	// 						Edit
+	// 					</button>
+	// 					<button
+	// 						type="button"
+	// 						onClick={async () => {
+	// 							deleteInventoryItem.mutate({ name: cell.row.original.name });
+	// 						}}
+	// 						className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors max-w-24"
+	// 					>
+	// 						Delete
+	// 					</button>
+	// 				</div>
+	// 			),
+	// 		},
+	// 	],
+	// 	[deleteInventoryItem.mutate, form.setFieldValue],
+	// );
 
 	return (
 		<div className="bg-background p-6">
@@ -213,7 +144,7 @@ function TableDemo() {
 				type="button"
 				onClick={() => {
 					setIsEdit(false);
-					setOpen(true)
+					setOpen(true);
 				}}
 				className="px-4 py-2 m-4 bg-green-600 hover:bg-green-700 text-white rounded-md transition-colors float-right"
 			>
@@ -222,8 +153,8 @@ function TableDemo() {
 			<Modal
 				open={open}
 				onClose={() => {
-					setOpen(false)
-					form.reset()
+					setOpen(false);
+					form.reset();
 				}}
 			>
 				<form
@@ -300,162 +231,10 @@ function TableDemo() {
 					</form.AppForm>
 				</form>
 			</Modal>
-			<div>
-				<DebouncedInput
-					value={globalFilter ?? ""}
-					onChange={(value) => setGlobalFilter(String(value))}
-					className="w-full p-3 bg-primary text-white rounded-lg border border-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-					placeholder="Search all columns..."
-				/>
-			</div>
-			<div className="h-4" />
-			<div className="overflow-x-auto rounded-lg border border-gray-700">
-				<table className="w-full text-sm text-text">
-					<thead className="bg-primary text-text">
-						{table.getHeaderGroups().map((headerGroup) => (
-							<tr key={headerGroup.id}>
-								{headerGroup.headers.map((header) => {
-									return (
-										<th
-											key={header.id}
-											colSpan={header.colSpan}
-											className="px-4 py-3 text-left"
-										>
-											{header.isPlaceholder ? null : (
-												<>
-													<div
-														{...{
-															className: header.column.getCanSort()
-																? "cursor-pointer select-none hover:text-blue-400 transition-colors"
-																: "",
-															onClick: header.column.getToggleSortingHandler(),
-														}}
-													>
-														{flexRender(
-															header.column.columnDef.header,
-															header.getContext(),
-														)}
-														{{
-															asc: " 🔼",
-															desc: " 🔽",
-														}[header.column.getIsSorted() as string] ?? null}
-													</div>
-												</>
-											)}
-										</th>
-									)
-								})}
-							</tr>
-						))}
-					</thead>
-					<tbody className="divide-y divide-gray-700">
-						{table.getRowModel().rows.map((row) => {
-							const isLessThanThreshold =
-								row.original.quantity < row.original.threshold;
-							const isEqualToThreshold =
-								row.original.quantity === row.original.threshold;
-							const violationClass = isLessThanThreshold
-								? "bg-red-700 hover:bg-red-800 transition-colors text-white"
-								: "bg-orange-400 hover:bg-orange-500 transition-colors text-white";
-							return (
-								<tr
-									key={row.id}
-									className={
-										!(isEqualToThreshold || isLessThanThreshold)
-											? "hover:bg-gray-800 transition-colors hover:text-white"
-											: violationClass
-									}
-								>
-									{row.getVisibleCells().map((cell) => {
-										return (
-											<td key={cell.id} className="px-4 py-3">
-												{flexRender(
-													cell.column.columnDef.cell,
-													cell.getContext(),
-												)}
-											</td>
-										)
-									})}
-								</tr>
-							)
-						})}
-					</tbody>
-				</table>
-			</div>
-			<div className="h-4" />
-			<div className="flex flex-wrap items-center gap-2 text-text">
-				<button
-					type="button"
-					className="px-3 py-1 bg-secondary rounded-md hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
-					onClick={() => table.previousPage()}
-					disabled={!table.getCanPreviousPage()}
-				>
-					{"<"}
-				</button>
-				<button
-					type="button"
-					className="px-3 py-1 bg-secondary rounded-md hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
-					onClick={() => table.nextPage()}
-					disabled={!table.getCanNextPage()}
-				>
-					{">"}
-				</button>
-				<span className="flex items-center gap-1">
-					<div>Page</div>
-					<strong>
-						{table.getState().pagination.pageIndex + 1} of{" "}
-						{table.getPageCount()}
-					</strong>
-				</span>
-				<select
-					value={table.getState().pagination.pageSize}
-					onChange={(e) => {
-						table.setPageSize(Number(e.target.value));
-					}}
-					className="px-2 py-1 bg-secondary rounded-md border border-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-				>
-					{[25, 50, 75, 100].map((pageSize) => (
-						<option key={pageSize} value={pageSize}>
-							Show {pageSize}
-						</option>
-					))}
-				</select>
-				<span>of {table.getPrePaginationRowModel().rows.length} rows</span>
-			</div>
+			<Table
+				data={useInventoryStore((state) => state.inventory)}
+				columns={columns}
+			/>
 		</div>
-	)
-}
-
-// A typical debounced input react component
-function DebouncedInput({
-	value: initialValue,
-	onChange,
-	debounce = 500,
-	...props
-}: {
-	value: string | number;
-	onChange: (value: string | number) => void;
-	debounce?: number;
-} & Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange">) {
-	const [value, setValue] = React.useState(initialValue);
-
-	React.useEffect(() => {
-		setValue(initialValue);
-	}, [initialValue]);
-
-	React.useEffect(() => {
-		const timeout = setTimeout(() => {
-			onChange(value);
-		}, debounce);
-
-		return () => clearTimeout(timeout);
-	}, [value, debounce, onChange]);
-
-	return (
-		<input
-			{...props}
-			value={value}
-			onChange={(e) => setValue(e.target.value)}
-		/>
-	)
+	);
 }

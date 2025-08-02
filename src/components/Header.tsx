@@ -33,7 +33,7 @@ export default function Header() {
 					);
 				})}
 				<div className="w-[30px] flex justify-center items-center">
-					<motion.div whileHover={{ scale: 1.2 }}>
+					<motion.div whileHover={{ scale: 1.2 }} className="hover:text-accent">
 						{!isDarkMode && (
 							<FontAwesomeIcon
 								icon={faMoon}
